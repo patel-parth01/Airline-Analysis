@@ -1,0 +1,95 @@
+# flight_dashboard.py
+
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from mpl_toolkits.mplot3d import Axes3D
+
+# Load Data
+@st.cache_data
+def load_data():
+    df = pd.read_csv("FF_flights_data.csv")  # <-- ensure this file exists
+    return df
+
+flight = load_data()
+
+# Sidebar Navigation
+st.sidebar.title("📊 Flight Delay Dashboard")
+page = st.sidebar.radio("Choose a Chart", [
+    "Scatter: Arrival vs Departure Delay",
+    "Boxplot: Delays by Airline",
+    "Scatter: Distance vs Delay",
+    "3D Plot: Distance, Dep Delay, Arr Delay",
+    "Weekly Trends",
+    "Correlation Heatmap"
+])
+
+# Chart 1: Arrival vs Departure Delay
+if page == "Scatter: Arrival vs Departure Delay":
+    st.header("Arrival Delay vs Departure Delay")
+    fig, ax = plt.subplots()
+    sns.scatterplot(x=flight["DEPARTURE_DELAY"], y=flight["ARRIVAL_DELAY"], alpha=0.5, ax=ax)
+    ax.set_xlabel("Departure Delay")
+    ax.set_ylabel("Arrival Delay")
+    st.pyplot(fig)
+
+# Chart 2: Boxplot by Airline
+elif page == "Boxplot: Delays by Airline":
+    st.header("Boxplots of Delays by Airline")
+    delay_type = st.selectbox("Delay Type", ["DEPARTURE_DELAY", "ARRIVAL_DELAY"])
+    fig, ax = plt.subplots(figsize=(10, 5))
+    sns.boxplot(x=flight["AIRLINE"], y=flight[delay_type], ax=ax)
+    ax.set_title(f"{delay_type.replace('_', ' ').title()} by Airline")
+    st.pyplot(fig)
+
+# Chart 3: Distance vs Delay
+elif page == "Scatter: Distance vs Delay":
+    st.header("Distance vs Delay")
+    fig, ax = plt.subplots()
+    sns.scatterplot(x=flight["DISTANCE"], y=flight["DEPARTURE_DELAY"], label="Departure", alpha=0.4)
+    sns.scatterplot(x=flight["DISTANCE"], y=flight["ARRIVAL_DELAY"], label="Arrival", alpha=0.4)
+    st.pyplot(fig)
+
+# Chart 4: 3D Plot
+elif page == "3D Plot: Distance, Dep Delay, Arr Delay":
+    st.header("3D Delay Analysis")
+    fig = plt.figure(figsize=(10, 6))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(flight["DISTANCE"], flight["DEPARTURE_DELAY"], flight["ARRIVAL_DELAY"], alpha=0.4)
+    ax.set_xlabel("Distance")
+    ax.set_ylabel("Departure Delay")
+    ax.set_zlabel("Arrival Delay")
+    st.pyplot(fig)
+
+# Chart 5: Weekly Trends
+elif page == "Weekly Trends":
+    st.header("Trends by Day of Week")
+    if "DAY_OF_WEEK" in flight.columns:
+        grouped = flight.groupby("DAY_OF_WEEK").agg({
+            "DEPARTURE_DELAY": "mean",
+            "ARRIVAL_DELAY": "mean",
+            "FLIGHT_NUMBER": "count"
+        }).reset_index()
+
+        fig, ax1 = plt.subplots(figsize=(10, 5))
+        ax2 = ax1.twinx()
+        sns.barplot(x=grouped["DAY_OF_WEEK"], y=grouped["FLIGHT_NUMBER"], color="skyblue", ax=ax1)
+        sns.lineplot(x=grouped["DAY_OF_WEEK"], y=grouped["DEPARTURE_DELAY"], ax=ax2, color="red", label="Departure Delay")
+        sns.lineplot(x=grouped["DAY_OF_WEEK"], y=grouped["ARRIVAL_DELAY"], ax=ax2, color="green", label="Arrival Delay")
+        ax1.set_ylabel("Flight Count")
+        ax2.set_ylabel("Average Delay (min)")
+        st.pyplot(fig)
+    else:
+        st.warning("Column 'DAY_OF_WEEK' not found.")
+
+# Chart 6: Correlation Heatmap
+elif page == "Correlation Heatmap":
+    st.header("Correlation Between Numerical Columns")
+    corr = flight.select_dtypes(include=["float64", "int64"]).corr()
+    fig, ax = plt.subplots(figsize=(10, 8))
+    sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
+    st.pyplot(fig)
+
+st.sidebar.markdown("---")
+st.sidebar.info("Built with ❤️ using Streamlit")
